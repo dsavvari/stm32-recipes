@@ -10,7 +10,7 @@ These examples utilise the STM32L4 on the B-L4S5I-IOT01A Discovery board.
 - STM32Cube,     CMakeList will clone it from github
 
 
-# HOW TO BUILD
+# How to Build each example
 - Download and extract the ARM-M4 toolchain for your platform. 
 - Set the toolchain path in var ARM_TOOLCHAIN_PATH within setupenv.sh
 - source setupenv.sh
@@ -18,7 +18,7 @@ These examples utilise the STM32L4 on the B-L4S5I-IOT01A Discovery board.
 - source create_configs.sh will create a debug and release configuration
 - Select either debug or release, then make.
 
-# CONTENTS
+# Contents
 ### bareMetalBlink : A minimal bare-metal implementation of a "Blink LED" program.
 - TBA
 
