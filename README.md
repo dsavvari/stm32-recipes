@@ -1,13 +1,13 @@
-#About
+# About
 
 A collection of recipes for setting up various STM32 components using bare-metal, CMSIS, and HAL. 
 
 These examples utilise the STM32L4 on the B-L4S5I-IOT01A Discovery board.
 
-#Requirements
-- ARM Toolchain
-- stm32-cmake
-- STM32Cube
+# Requirements
+- ARM Toolchain, download it from ARM website here: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+- stm32-cmake,   CMakeList will clone it from github
+- STM32Cube,     CMakeList will clone it from github
 
 
 # HOW TO BUILD
@@ -19,6 +19,6 @@ These examples utilise the STM32L4 on the B-L4S5I-IOT01A Discovery board.
 - Select either debug or release, then make.
 
 # CONTENTS
-##bareMetalBlink :  This is a minimal bare-metal implementation of a "Blink LED" program.
+### bareMetalBlink : A minimal bare-metal implementation of a "Blink LED" program.
 - TBA
 
