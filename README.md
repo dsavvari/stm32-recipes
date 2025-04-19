@@ -4,32 +4,38 @@
 This repository provides a collection of examples for setting up various **STM32** components using **bare-metal**, **CMSIS**, and **HAL** frameworks. The examples are tailored for the **STM32L4** series, specifically using the **B-L4S5I-IOT01A Discovery Board**.
 
 ## Requirements
-Before building the examples, make sure you have the following dependencies:
+Before building the examples, ensure you have the following dependencies installed:
 
-- **ARM Toolchain**: The ARM GCC toolchain is required for compiling the code. Download it from the [ARM Developer website](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads).
-- **STM32-CMake**: A CMake tool that simplifies STM32 project setup. The `CMakeLists.txt` will automatically clone it from GitHub.
+- **ARM Toolchain**: [Download the ARM GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads).
+- **STM32-CMake**: A CMake tool that simplifies STM32 project setup. The `CMakeLists.txt` will automatically clone it from GitHub if not already present.
 - **STM32Cube**: Required for configuring STM32 peripherals and initialization. CMake will also clone this from GitHub as part of the setup.
 
-## How to Build Each Example
-Follow these steps to build the examples:
+## How to Build the Examples
 
-1. **Download and Extract the ARM Toolchain**: Choose the appropriate version of the ARM-M4 toolchain for your platform and extract it.
-2. **Set the Toolchain Path**: Edit the `setupenv.sh` file and set the `ARM_TOOLCHAIN_PATH` variable to point to the toolchain directory.
-3. **Source the Setup Script**: Run the following command to set up the environment variables:
+Follow these steps to build and run the examples:
+
+1. **Set the Toolchain Path**:
+   Ensure the ARM toolchain path is correctly set in the `CMakeLists.txt` file:
+   ```cmake
+   set(ARM_TOOLCHAIN_PATH "/path/to/arm-toolchain")
+   ```
+2. **Source the Thirdparty libraries**: Run the following command to set up the environment variables:
     ```sh
-    source setupenv.sh
+    source thirdparty.sh
     ```
-4. **Build Configuration**: Each example is self-contained in its own folder with its own `CMakeLists.txt`. To configure build options, run:
+3. **CMake Configuration**: Each example is self-contained in its own folder with its own `CMakeLists.txt`. To configure build options, run:
     ```sh
-    source create_configs.sh
+    mkdir build & cd build 
+    cmake -DCMAKE_BUILD_TYPE=Debug ..
+    or
+    & mkdir rel & cd rel
+    cmake -DCMAKE_BUILD_TYPE=Release ..
     ```
     This will generate **Debug** and **Release** configurations.
-5. **Select Build Type**: Choose either the **Debug** or **Release** configuration and run `make` to build:
+4. **Select Build Type**: Choose either the **Debug** or **Release** configuration and run `make` to build:
     ```sh
-    make <configuration>
+    make <target>
     ```
-    Replace `<configuration>` with either `debug` or `release`.
-
 ## Project Structure
 
 ### Example Folders
