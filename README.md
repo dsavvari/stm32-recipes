@@ -28,7 +28,7 @@ Follow these steps to build and run the examples:
     mkdir build & cd build 
     cmake -DCMAKE_BUILD_TYPE=Debug ..
     or
-    & mkdir rel & cd rel
+    mkdir rel & cd rel
     cmake -DCMAKE_BUILD_TYPE=Release ..
     ```
     This will generate **Debug** and **Release** configurations.
