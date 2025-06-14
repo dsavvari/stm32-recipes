@@ -20,10 +20,10 @@ set(SRC_FILES ${C_SOURCES} ${CPP_SOURCES})
 
 # STM32L4
 if(L4)
-    add_executable(stm32l4-bareMetalBlink ${SRC_FILES} )
-    target_link_libraries(stm32l4-bareMetalBlink
+    add_executable(stm32l4-bareMetalPWM ${SRC_FILES} )
+    target_link_libraries(stm32l4-bareMetalPWM
         CMSIS::STM32::L4S5VI
         STM32::NoSys
     )
-    stm32_print_size_of_target(stm32l4-bareMetalBlink)
+    stm32_print_size_of_target(stm32l4-bareMetalPWM)
 endif()
