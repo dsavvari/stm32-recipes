@@ -33,8 +33,13 @@ set(STM32_CMAKE "${CMAKE_SOURCE_DIR}/repos/stm32-cmake")
 set(STM32_CUBE_L4_PATH ${STM32_CUBE_L4_PATH} CACHE INTERNAL "Path to STM32CubeL4")
 set(STM32_CMAKE ${STM32_CMAKE} CACHE INTERNAL "Path to stm32-cmake")
 
+# Top-level CMakeLists.txt
+#find_package(CMSIS REQUIRED)
+find_package(CMSIS COMPONENTS "${CMSIS_COMP_LIST}" REQUIRED)
+
 # Include subprojects
 add_subdirectory(bareMetalBlink)
+add_subdirectory(bareMetalPWM)
 
 # Add more subprojects here as needed
 # Example: add_subdirectory(anotherProject)
