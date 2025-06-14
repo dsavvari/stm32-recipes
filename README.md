@@ -44,8 +44,11 @@ Each example is located in its own directory with a complete `CMakeLists.txt` fi
 #### `bareMetalBlink`
 - A minimal **bare-metal** implementation of a "Blink LED" program. This example demonstrates how to set up basic GPIO for an LED blink with no external libraries (other than the necessary CMSIS).
   
+#### `bareMetalPWM`
+- A bare-metal example demonstrating **PWM (Pulse Width Modulation)** signal generation on STM32L4S5VI (B-L4S5I-IOT01A). This example configures TIM2 to output a PWM signal on PA0 (ARD-D1), and allows the user to cycle through preset frequencies or pulse widths by pressing the user button (PC13). All configuration is done via direct register access, without HAL or CMSIS drivers. This is ideal for learning low-level STM32 timer and GPIO control.
+
 #### `TBA`
-- **To Be Added**: Future examples will be added to demonstrate other STM32L4 features such as UART, I2C, PWM, etc.
+- **To Be Added**: Future examples will be added to demonstrate other STM32L4 features such as UART, I2C, DMA, FLASH, etc.
 
 ## License
 This project is licensed under the **MIT License**. See the [LICENSE](./LICENSE) file for more details.
