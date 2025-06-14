@@ -8,7 +8,7 @@
  * This is a minimal bare-metal implementation of a "Blink LED" program for the
  * STM32L4S5VI microcontroller on the B-L4S5I-IOT01A development board.
  *
- * - Configures GPIOA Pin 5 (PA5) as an output.
+ * - Configures GPIOA Pin 5 (PA5-LED1) as an output.
  * - Toggles the LED in an infinite loop with a simple delay.
  * - Uses direct register access without any HAL or CMSIS libraries.
  * - Demonstrates basic clock setup and GPIO control.
@@ -39,18 +39,13 @@
  */
 
 #include <stdint.h>
-#include "stm32l4xx.h"
+#include "stm32l4s5xx.h"
 
-#if 0
 /* ----------------------------------------------------------------------------
  * Constants
  *
  * Register addresses - see STM32L4S5 RM0432
  */
-#define RCC_BASE 0x40021000U
-#define GPIOA_BASE 0x48000000U // GPIOA base address
-#define GPIOB_BASE 0x48000400U // GPIOB base address
-
 #define RCC_AHB2ENR                                                            \
     (*(volatile uint32_t*)(RCC_BASE + 0x4C)) // Enable GPIO clocks
 
@@ -83,9 +78,6 @@
 
 /* Delay counters */
 #define DELAY_COUNTER (100000U)
-
-#endif
-
 
 
 /**
