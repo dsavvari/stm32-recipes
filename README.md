@@ -3,14 +3,6 @@
 ## About
 This repository provides a collection of examples for setting up various **STM32** components using **bare-metal**, **CMSIS**, and **HAL** frameworks. The examples are tailored for the **STM32L4** series, specifically using the **B-L4S5I-IOT01A Discovery Board**.
 
-**🚀 Features:**
-
-- ✅ **Multi-architecture Docker support** (ARM64 Mac + x86_64 CI/CD)
-- ✅ **Complete CI/CD pipeline** with GitHub Actions
-- ✅ **VS Code integration** with comprehensive tasks and debugging
-- ✅ **Automated notifications** (GitHub Issues, PR comments, build artifacts)
-- ✅ **Consistent development environment** across local and cloud builds
-
 ## Quick Start
 
 ### Option 1: Docker Development (Recommended)
@@ -208,7 +200,7 @@ The CI system provides multiple notification channels:
 2. GitHub Settings → Notifications → Enable "Actions"
 
 **Advanced Notifications Setup:**
-See [NOTIFICATIONS.md](NOTIFICATIONS.md) for detailed setup instructions for Slack, Discord, Teams, and custom webhooks.
+For advanced notification setups like Slack, Discord, or Teams, you can configure custom webhooks in the GitHub Actions workflow by adding the appropriate secrets and notification steps.
 
 ### 📊 **Build Metrics**
 
