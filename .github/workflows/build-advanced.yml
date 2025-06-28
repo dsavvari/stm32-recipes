@@ -1,0 +1,227 @@
+name: STM32 Advanced Build with Notifications
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  schedule:
+    # Run weekly build check on Sundays at 6:00 AM UTC
+    - cron: '0 6 * * 0'
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    outputs:
+      build-status: ${{ steps.build-status.outputs.status }}
+      binary-sizes: ${{ steps.sizes.outputs.sizes }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0  # Fetch full history for better commit info
+    
+    - name: Set up ARM GNU Toolchain
+      uses: carlosperate/arm-none-eabi-gcc-action@v1
+      with:
+        release: '12.2.Rel1'
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential git
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: repos/
+        key: stm32-deps-${{ hashFiles('thirdparty.sh') }}
+        restore-keys: |
+          stm32-deps-
+    
+    - name: Setup third-party dependencies
+      run: |
+        chmod +x ./thirdparty.sh
+        ./thirdparty.sh
+    
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+                 -DCMAKE_TOOLCHAIN_FILE=../repos/stm32-cmake/cmake/stm32_gcc.cmake
+    
+    - name: Build all projects
+      id: build
+      run: |
+        cd build
+        cmake --build . --parallel $(nproc) 2>&1 | tee build.log
+        echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
+      continue-on-error: true
+    
+    - name: Set build status
+      id: build-status
+      run: |
+        if [ "$BUILD_SUCCESS" == "true" ]; then
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Collect binary information
+      id: sizes
+      if: env.BUILD_SUCCESS == 'true'
+      run: |
+        sizes_json="["
+        first=true
+        for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
+          if [ -f "build/${project}/stm32l4-${project}.elf" ]; then
+            if [ "$first" = false ]; then
+              sizes_json="${sizes_json},"
+            fi
+            size_output=$(arm-none-eabi-size "build/${project}/stm32l4-${project}.elf" | tail -n 1)
+            text=$(echo $size_output | awk '{print $1}')
+            data=$(echo $size_output | awk '{print $2}')
+            bss=$(echo $size_output | awk '{print $3}')
+            dec=$(echo $size_output | awk '{print $4}')
+            hex=$(echo $size_output | awk '{print $5}')
+            sizes_json="${sizes_json}{\"project\":\"${project}\",\"text\":${text},\"data\":${data},\"bss\":${bss},\"total\":${dec},\"hex\":\"${hex}\"}"
+            first=false
+          fi
+        done
+        sizes_json="${sizes_json}]"
+        echo "sizes=${sizes_json}" >> $GITHUB_OUTPUT
+    
+    - name: Generate build summary
+      run: |
+        echo "# STM32 Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Build Type:** \`$BUILD_TYPE\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "$BUILD_SUCCESS" == "true" ]; then
+          echo "## ✅ Build Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Binary Sizes" >> $GITHUB_STEP_SUMMARY
+          echo "| Project | Text (bytes) | Data (bytes) | BSS (bytes) | Total (bytes) | Total (hex) |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------------|--------------|-------------|---------------|-------------|" >> $GITHUB_STEP_SUMMARY
+          
+          for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
+            if [ -f "build/${project}/stm32l4-${project}.elf" ]; then
+              size_output=$(arm-none-eabi-size "build/${project}/stm32l4-${project}.elf" | tail -n 1)
+              text=$(echo $size_output | awk '{print $1}')
+              data=$(echo $size_output | awk '{print $2}')
+              bss=$(echo $size_output | awk '{print $3}')
+              dec=$(echo $size_output | awk '{print $4}')
+              hex=$(echo $size_output | awk '{print $5}')
+              echo "| $project | $text | $data | $bss | $dec | $hex |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+        else
+          echo "## ❌ Build Status: FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the build logs above for detailed error information." >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Upload build artifacts
+      if: env.BUILD_SUCCESS == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: stm32-binaries-${{ github.sha }}
+        path: |
+          build/*/stm32l4-*.elf
+          build/*/stm32l4-*.bin
+          build/*/stm32l4-*.hex
+        retention-days: 30
+    
+    - name: Upload build logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ github.sha }}
+        path: build/build.log
+        retention-days: 7
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: build
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Create issue on build failure
+      if: needs.build.outputs.build-status == 'failure'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issue = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🚨 Build Failed on Master Branch (${context.sha.substring(0, 7)})`,
+            body: `
+          ## Build Failure Report
+          
+          **Commit:** \`${context.sha}\`
+          **Author:** @${context.actor}
+          **Message:** ${context.payload.head_commit?.message || 'N/A'}
+          
+          The STM32 build pipeline failed on the master branch.
+          
+          ### Action Required
+          - [ ] Review the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})
+          - [ ] Fix the build issues
+          - [ ] Push corrective changes
+          
+          ### Quick Links
+          - [View Commit](${context.payload.head_commit?.url || '#'})
+          - [Build Logs](${context.payload.repository.html_url}/actions/runs/${context.runId})
+          
+          ---
+          *This issue was automatically created by the STM32 Build workflow.*
+            `,
+            labels: ['bug', 'build-failure', 'urgent'],
+            assignees: ['${context.actor}']
+          });
+          
+          console.log('Created issue:', issue.data.number);
+    
+    # Optional: Send email notification (requires EMAIL_* secrets)
+    - name: Send email notification on failure
+      if: needs.build.outputs.build-status == 'failure'
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: ${{ secrets.EMAIL_SERVER }}
+        server_port: ${{ secrets.EMAIL_PORT }}
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "🚨 STM32 Build Failed - ${{ github.repository }}"
+        body: |
+          Build failed on master branch.
+          
+          Commit: ${{ github.sha }}
+          Author: ${{ github.actor }}
+          
+          Check the workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        to: ${{ secrets.NOTIFICATION_EMAIL }}
+        from: ${{ secrets.EMAIL_FROM }}
+      continue-on-error: true
+    
+    # Optional: Send Slack notification (requires SLACK_WEBHOOK_URL secret)
+    - name: Send Slack notification
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ needs.build.outputs.build-status == 'success' && 'success' || 'failure' }}
+        text: |
+          STM32 Build ${{ needs.build.outputs.build-status == 'success' && '✅ Succeeded' || '❌ Failed' }} on master
+          Commit: `${{ github.sha }}`
+          Author: ${{ github.actor }}
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+      continue-on-error: true
