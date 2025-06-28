@@ -61,7 +61,6 @@
 
 /*PA5 GPIO connects to on-board LED-1*/
 /* Bit positions */
-#define RCC_AHB2ENR_GPIOAEN (1U << 0)  // Enable GPIOA clock
 #define GPIOA5_MODER_OUTPUT (1U << 10) // Set PA5 as output
 #define GPIOA5_MODER_MASK (3U << 10)   // Mask for PA5 mode
 #define GPIOA5_ODR (1U << 5)           // Control PA5 output state
@@ -69,7 +68,6 @@
 
 /*PB14 GPIO connects to on-board LED-2*/
 /* Bit positions */
-#define RCC_AHB2ENR_GPIOBEN (1U << 1)  // Enable GPIOB clock
 #define GPIOB14_MODER_OUTPUT (1U << 28) // Set PB14 as output
 #define GPIOB14_MODER_MASK (3U << 28)   // Mask for PB14 mode
 #define GPIOB14_ODR (1U << 14)          // Control PB14 output state
