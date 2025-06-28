@@ -40,6 +40,7 @@ find_package(CMSIS COMPONENTS "${CMSIS_COMP_LIST}" REQUIRED)
 # Include subprojects
 add_subdirectory(bareMetalBlink)
 add_subdirectory(bareMetalPWM)
+add_subdirectory(bareMetalSysTick)
 
 # Add more subprojects here as needed
 # Example: add_subdirectory(anotherProject)
