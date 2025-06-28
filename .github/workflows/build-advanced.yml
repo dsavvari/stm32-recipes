@@ -15,6 +15,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: dsavvari/stm32-dev:latest
+      options: --user root
 
     outputs:
       build-status: ${{ steps.build-status.outputs.status }}
@@ -27,15 +30,12 @@ jobs:
         submodules: recursive
         fetch-depth: 0  # Fetch full history for better commit info
 
-    - name: Set up ARM GNU Toolchain
-      uses: carlosperate/arm-none-eabi-gcc-action@v1
-      with:
-        release: '12.2.Rel1'
-
-    - name: Install dependencies
+    - name: Verify toolchain
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential git
+        which arm-none-eabi-gcc
+        arm-none-eabi-gcc --version
+        which cmake
+        cmake --version
 
     - name: Cache dependencies
       uses: actions/cache@v4
