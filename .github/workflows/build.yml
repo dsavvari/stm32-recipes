@@ -106,3 +106,37 @@ jobs:
       run: |
         echo "❌ STM32 build failed on commit ${{ github.sha }}"
         echo "Check the workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+    - name: Send email notification on failure
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "🚨 STM32 Build Failed - ${{ github.repository }}"
+        body: |
+          Build failed for commit ${{ github.sha }}
+
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Workflow: ${{ github.workflow }}
+
+          Check the workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        to: your-email@example.com
+        from: STM32 Build Bot
+
+    - name: Create GitHub issue on failure
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        curl -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/issues" \
+          -d '{
+            "title": "🚨 Build Failed on Master Branch",
+            "body": "The STM32 build failed on commit ${{ github.sha }}.\n\nCommit message: ${{ github.event.head_commit.message }}\n\nCheck the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.",
+            "labels": ["bug", "build-failure", "ci"]
+          }'
