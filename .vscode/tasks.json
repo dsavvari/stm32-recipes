@@ -2,6 +2,153 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "Build All Projects",
+			"type": "shell",
+			"command": "cmake",
+			"args": ["--build", "build"],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": ["$gcc"],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Build all STM32 projects (works inside Docker or with local toolchain)"
+		},
+		{
+			"label": "Build All Projects (Docker)",
+			"type": "shell",
+			"command": "docker",
+			"args": ["exec", "-it", "dev_stm32", "cmake", "--build", "build"],
+			"group": "build",
+			"problemMatcher": ["$gcc"],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Build all STM32 projects inside Docker container (from host)"
+		},
+		{
+			"label": "Build Project",
+			"type": "shell",
+			"command": "cmake",
+			"args": ["--build", "build", "--target", "stm32l4-${input:buildProjectName}"],
+			"group": "build",
+			"problemMatcher": ["$gcc"],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Build a specific STM32 project (works inside Docker or with local toolchain)"
+		},
+		{
+			"label": "Build Project (Docker)",
+			"type": "shell",
+			"command": "docker",
+			"args": ["exec", "-it", "dev_stm32", "cmake", "--build", "build", "--target", "stm32l4-${input:buildProjectName}"],
+			"group": "build",
+			"problemMatcher": ["$gcc"],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Build a specific STM32 project inside Docker container (from host)"
+		},
+		{
+			"label": "Clean Build",
+			"type": "shell",
+			"command": "cmake",
+			"args": ["--build", "build", "--target", "clean"],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Clean all build artifacts (works inside Docker or with local toolchain)"
+		},
+		{
+			"label": "Clean Build (Docker)",
+			"type": "shell",
+			"command": "docker",
+			"args": ["exec", "-it", "dev_stm32", "cmake", "--build", "build", "--target", "clean"],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Clean all build artifacts inside Docker container (from host)"
+		},
+		{
+			"label": "Initial Project Setup",
+			"type": "shell",
+			"command": "sh",
+			"args": ["-c", "./thirdparty.sh && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug"],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Complete initial setup: dependencies + CMake configure (works inside Docker or with local toolchain)"
+		},
+		{
+			"label": "Initial Project Setup (Docker)",
+			"type": "shell",
+			"command": "docker",
+			"args": ["exec", "-it", "dev_stm32", "sh", "-c", "cd /repo && ./thirdparty.sh && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug"],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Complete initial setup: dependencies + CMake configure inside Docker container (from host)"
+		},
+		{
+			"label": "Setup Dependencies",
+			"type": "shell",
+			"command": "./thirdparty.sh",
+			"args": [],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Setup third-party dependencies (STM32-CMake, STM32CubeL4) - works inside Docker or with local toolchain"
+		},
+		{
+			"label": "Setup Dependencies (Docker)",
+			"type": "shell",
+			"command": "docker",
+			"args": ["exec", "-it", "dev_stm32", "sh", "-c", "cd /repo && ./thirdparty.sh"],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Setup third-party dependencies inside Docker container (from host)"
+		},
+		{
+			"label": "Configure CMake",
+			"type": "shell",
+			"command": "sh",
+			"args": ["-c", "mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug"],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Configure CMake project for Debug build (works inside Docker or with local toolchain)"
+		},
+		{
+			"label": "Configure CMake (Docker)",
+			"type": "shell",
+			"command": "docker",
+			"args": ["exec", "-it", "dev_stm32", "sh", "-c", "cd /repo/build && cmake .. -DCMAKE_BUILD_TYPE=Debug"],
+			"group": "build",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"detail": "Configure CMake project for Debug build inside Docker container (from host)"
+		},
+		{
 			"label": "Start OpenOCD Server for STM32",
 			"type": "shell",
 			"command": "openocd",
@@ -41,6 +188,16 @@
 		{
 			"id": "projectName",
 			"description": "Select project to flash",
+			"type": "pickString",
+			"options": [
+				"bareMetalBlink",
+				"bareMetalPWM",
+				"bareMetalSysTick"
+			]
+		},
+		{
+			"id": "buildProjectName",
+			"description": "Select project to build",
 			"type": "pickString",
 			"options": [
 				"bareMetalBlink",
