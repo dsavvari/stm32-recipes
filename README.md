@@ -98,6 +98,47 @@ The VS Code tasks are designed to work in two environments:
 
 **Note**: Hardware access tasks (OpenOCD, flashing, debugging) must always run on the host system where the ST-Link debugger is physically connected, regardless of whether the build environment is inside Docker or local.
 
+## Continuous Integration
+
+This repository includes GitHub Actions workflows for automated building and testing:
+
+### Basic Build Workflow (`.github/workflows/build.yml`)
+
+Automatically builds all STM32 projects on every push to master/main branch:
+
+- ✅ **Builds all projects** using ARM GCC toolchain
+- 📊 **Displays binary sizes** in workflow summary
+- 📦 **Uploads build artifacts** (ELF, BIN, HEX files)
+- 🚨 **Creates GitHub issues** on build failures
+- 🔄 **Supports pull requests** for validation
+
+### Advanced Build Workflow (`.github/workflows/build-advanced.yml`)
+
+Enhanced workflow with additional features:
+
+- 📧 **Email notifications** on build failures (optional)
+- 💬 **Slack notifications** (optional)
+- 📈 **Weekly scheduled builds** for health checks
+- 🗂️ **Detailed build summaries** with size comparisons
+- 💾 **Dependency caching** for faster builds
+
+### Setup Instructions
+
+1. **Enable GitHub Actions**: Workflows are automatically enabled when you push to GitHub
+2. **Configure Notifications** (optional):
+   - For email: Add secrets `EMAIL_SERVER`, `EMAIL_PORT`, `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `EMAIL_FROM`, `NOTIFICATION_EMAIL`
+   - For Slack: Add secret `SLACK_WEBHOOK_URL`
+3. **Customize**: Edit workflow files to match your notification preferences
+
+### Workflow Triggers
+
+- **Push to master/main**: Full build and notification
+- **Pull requests**: Build validation only
+- **Weekly schedule**: Health check builds (advanced workflow)
+- **Manual trigger**: Available in GitHub Actions tab
+
+The CI system ensures that all STM32 projects remain buildable and provides immediate feedback on any issues.
+
 ## License
 
 This project is licensed under the **MIT License**. See the [LICENSE](./LICENSE) file for more details.
