@@ -69,7 +69,7 @@ jobs:
     - name: Set build status
       id: build-status
       run: |
-        if [ "$BUILD_SUCCESS" == "true" ]; then
+        if [ "$BUILD_SUCCESS" = "true" ]; then
           echo "status=success" >> $GITHUB_OUTPUT
         else
           echo "status=failure" >> $GITHUB_OUTPUT
@@ -108,7 +108,7 @@ jobs:
         echo "**Build Type:** \`$BUILD_TYPE\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
-        if [ "$BUILD_SUCCESS" == "true" ]; then
+        if [ "$BUILD_SUCCESS" = "true" ]; then
           echo "## ✅ Build Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Binary Sizes" >> $GITHUB_STEP_SUMMARY
