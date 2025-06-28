@@ -21,21 +21,32 @@ jobs:
       with:
         release: '12.2.Rel1'
     
-    - name: Install CMake
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential
+        sudo apt-get install -y cmake build-essential git
+    
+    - name: Verify toolchain installation
+      run: |
+        arm-none-eabi-gcc --version
+        arm-none-eabi-size --version
+        cmake --version
     
     - name: Setup third-party dependencies
       run: |
         chmod +x ./thirdparty.sh
         ./thirdparty.sh
     
+    - name: List dependencies
+      run: |
+        ls -la repos/
+        ls -la repos/stm32-cmake/
+    
     - name: Configure CMake
       run: |
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../repos/stm32-cmake/cmake/stm32_gcc.cmake
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DSTM32_CHIP=STM32L4S5VI
     
     - name: Build all projects
       run: |
@@ -50,6 +61,7 @@ jobs:
         
         for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
           if [ -f "build/${project}/stm32l4-${project}.elf" ]; then
+            echo "Processing $project..."
             size_output=$(arm-none-eabi-size "build/${project}/stm32l4-${project}.elf" | tail -n 1)
             text=$(echo $size_output | awk '{print $1}')
             data=$(echo $size_output | awk '{print $2}')
@@ -57,6 +69,9 @@ jobs:
             dec=$(echo $size_output | awk '{print $4}')
             hex=$(echo $size_output | awk '{print $5}')
             echo "| $project | $text | $data | $bss | $dec | $hex |" >> $GITHUB_STEP_SUMMARY
+            echo "$project: text=$text, data=$data, bss=$bss, total=$dec"
+          else
+            echo "⚠️ Binary not found for $project"
           fi
         done
     
@@ -69,39 +84,25 @@ jobs:
           build/*/stm32l4-*.bin
           build/*/stm32l4-*.hex
         retention-days: 30
+      if: always()  # Upload artifacts even if some steps fail
     
     - name: Check for build failures
       if: failure()
       run: |
-        echo "Build failed! Check the logs above for details."
+        echo "❌ Build failed! Check the logs above for details."
+        echo "## Build Failed" >> $GITHUB_STEP_SUMMARY
+        echo "The STM32 build process encountered an error. Please check the workflow logs for details." >> $GITHUB_STEP_SUMMARY
         exit 1
 
   notify:
     runs-on: ubuntu-latest
     needs: build
-    if: always()
+    if: failure()
     
     steps:
-    - name: Notify on success
-      if: needs.build.result == 'success'
-      run: |
-        echo "✅ STM32 build completed successfully!"
-        
     - name: Notify on failure
-      if: needs.build.result == 'failure'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "❌ STM32 build failed!"
-        # Create an issue on build failure (optional)
-        if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/master" ]; then
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues" \
-            -d '{
-              "title": "Build Failed on Master Branch",
-              "body": "The STM32 build failed on commit ${{ github.sha }}.\n\nPlease check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.",
-              "labels": ["bug", "build-failure"]
-            }'
-        fi
+        echo "❌ STM32 build failed on commit ${{ github.sha }}"
+        echo "Check the workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
