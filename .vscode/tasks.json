@@ -1,0 +1,52 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start OpenOCD Server for STM32",
+			"type": "shell",
+			"command": "openocd",
+			"args": [
+				"-f", "interface/stlink.cfg",
+				"-f", "target/stm32l4x.cfg"
+			],
+			"problemMatcher": [],
+			"isBackground": true,
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"detail": "Start OpenOCD server for STM32 debugging"
+		},
+		{
+			"label": "Flash STM32",
+			"type": "shell",
+			"command": "openocd",
+			"args": [
+				"-f", "interface/stlink.cfg",
+				"-f", "target/stm32l4x.cfg",
+				"-c", "init",
+				"-c", "reset halt",
+				"-c", "program ${workspaceFolder}/build/${input:projectName}/stm32l4-${input:projectName}.elf verify reset exit"
+			],
+			"problemMatcher": [],
+			"isBackground": false,
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"detail": "Flash a binary to STM32 using OpenOCD - select project to flash"
+		}
+	],
+	"inputs": [
+		{
+			"id": "projectName",
+			"description": "Select project to flash",
+			"type": "pickString",
+			"options": [
+				"bareMetalBlink",
+				"bareMetalPWM",
+				"bareMetalSysTick"
+			]
+		}
+	]
+}

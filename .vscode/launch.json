@@ -1,0 +1,33 @@
+{
+    "version": "2.0.0",
+    "configurations": [
+        {
+            "name": "GDB Debug STM32",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "external",
+            "executable": "${workspaceFolder}/build/${input:debugProjectName}/stm32l4-${input:debugProjectName}.elf",
+            "gdbTarget": "localhost:3333",
+            "device": "STM32L4S5VI",
+            "overrideLaunchCommands": [
+                "target remote localhost:3333",
+                "set substitute-path /repo ${workspaceFolder}",
+                "monitor reset halt",
+                "load",
+                "b main"
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "debugProjectName",
+            "description": "Select project to debug",
+            "type": "pickString",
+            "options": [
+                "bareMetalBlink",
+                "bareMetalPWM",
+                "bareMetalSysTick"
+            ]
+        }
+    ]
+}
