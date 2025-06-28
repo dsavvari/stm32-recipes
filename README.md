@@ -98,46 +98,32 @@ The VS Code tasks are designed to work in two environments:
 
 **Note**: Hardware access tasks (OpenOCD, flashing, debugging) must always run on the host system where the ST-Link debugger is physically connected, regardless of whether the build environment is inside Docker or local.
 
-## Continuous Integration
+## GitHub Actions CI/CD
 
-This repository includes GitHub Actions workflows for automated building and testing:
+![Build Status](https://github.com/YOUR_USERNAME/stm32-recipes/workflows/STM32%20Build%20and%20Test/badge.svg)
 
-### Basic Build Workflow (`.github/workflows/build.yml`)
+This repository includes automated CI/CD with GitHub Actions:
 
-Automatically builds all STM32 projects on every push to master/main branch:
+### Build Workflows
 
-- ✅ **Builds all projects** using ARM GCC toolchain
-- 📊 **Displays binary sizes** in workflow summary
-- 📦 **Uploads build artifacts** (ELF, BIN, HEX files)
-- 🚨 **Creates GitHub issues** on build failures
-- 🔄 **Supports pull requests** for validation
+- **STM32 Build and Test**: Main workflow that builds all projects on every push/PR
+- **STM32 Advanced Build**: Enhanced workflow with caching and notifications
+- **STM32 Simple Build**: Minimal workflow for basic builds
 
-### Advanced Build Workflow (`.github/workflows/build-advanced.yml`)
+### Notifications
 
-Enhanced workflow with additional features:
+The CI system provides multiple notification methods:
 
-- 📧 **Email notifications** on build failures (optional)
-- 💬 **Slack notifications** (optional)
-- 📈 **Weekly scheduled builds** for health checks
-- 🗂️ **Detailed build summaries** with size comparisons
-- 💾 **Dependency caching** for faster builds
+- ✅ **GitHub Issues**: Automatically created for failed builds on master branch
+- ✅ **PR Comments**: Added to pull requests when builds fail
+- ✅ **Build Artifacts**: ELF files uploaded for download after successful builds
+- 🔧 **Email/Slack/Discord**: Optional - see [NOTIFICATIONS.md](NOTIFICATIONS.md) for setup
 
-### Setup Instructions
+### Quick Setup for Notifications
 
-1. **Enable GitHub Actions**: Workflows are automatically enabled when you push to GitHub
-2. **Configure Notifications** (optional):
-   - For email: Add secrets `EMAIL_SERVER`, `EMAIL_PORT`, `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `EMAIL_FROM`, `NOTIFICATION_EMAIL`
-   - For Slack: Add secret `SLACK_WEBHOOK_URL`
-3. **Customize**: Edit workflow files to match your notification preferences
-
-### Workflow Triggers
-
-- **Push to master/main**: Full build and notification
-- **Pull requests**: Build validation only
-- **Weekly schedule**: Health check builds (advanced workflow)
-- **Manual trigger**: Available in GitHub Actions tab
-
-The CI system ensures that all STM32 projects remain buildable and provides immediate feedback on any issues.
+1. **Enable GitHub notifications**: Go to repository → Click "Watch" → "All Activity"
+2. **Enable email alerts**: GitHub Settings → Notifications → Enable "Actions"
+3. **Advanced notifications**: See [NOTIFICATIONS.md](NOTIFICATIONS.md) for Slack, Discord, Teams setup
 
 ## License
 
