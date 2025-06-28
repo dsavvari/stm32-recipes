@@ -1,4 +1,4 @@
-name: STM32 Advanced Build with Notifications
+name: STM32 Build and Test
 
 on:
   push:
@@ -55,7 +55,8 @@ jobs:
         mkdir -p build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-                 -DCMAKE_TOOLCHAIN_FILE=../repos/stm32-cmake/cmake/stm32_gcc.cmake
+                 -DCMAKE_TOOLCHAIN_FILE=../repos/stm32-cmake/cmake/stm32_gcc.cmake \
+                 -DSTM32_CHIP=STM32L4S5VI
 
     - name: Build all projects
       id: build
@@ -150,78 +151,31 @@ jobs:
         path: build/build.log
         retention-days: 7
 
-  notify:
-    runs-on: ubuntu-latest
-    needs: build
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # Immediate notifications (no separate job needed)
+    - name: Create GitHub issue on failure (Master branch only)
+      if: failure() && github.ref == 'refs/heads/master'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        curl -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/issues" \
+          -d '{
+            "title": "🚨 Build Failed on Master Branch - ${{ github.sha }}",
+            "body": "**Build Failed** ❌\n\n**Details:**\n- Commit: ${{ github.sha }}\n- Branch: ${{ github.ref_name }}\n- Workflow: ${{ github.workflow }}\n- Run: ${{ github.run_id }}\n\n**Commit Message:**\n${{ github.event.head_commit.message }}\n\n**Action Required:**\nPlease check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details and fix the build issues.\n\n---\n*This issue was automatically created by the CI system.*",
+            "labels": ["bug", "build-failure", "ci", "urgent"]
+          }'
 
-    steps:
-    - name: Create issue on build failure
-      if: needs.build.outputs.build-status == 'failure'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const issue = await github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: `🚨 Build Failed on Master Branch (${context.sha.substring(0, 7)})`,
-            body: `
-          ## Build Failure Report
-
-          **Commit:** \`${context.sha}\`
-          **Author:** @${context.actor}
-          **Message:** ${context.payload.head_commit?.message || 'N/A'}
-
-          The STM32 build pipeline failed on the master branch.
-
-          ### Action Required
-          - [ ] Review the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})
-          - [ ] Fix the build issues
-          - [ ] Push corrective changes
-
-          ### Quick Links
-          - [View Commit](${context.payload.head_commit?.url || '#'})
-          - [Build Logs](${context.payload.repository.html_url}/actions/runs/${context.runId})
-
-          ---
-          *This issue was automatically created by the STM32 Build workflow.*
-            `,
-            labels: ['bug', 'build-failure', 'urgent'],
-            assignees: ['${context.actor}']
-          });
-
-          console.log('Created issue:', issue.data.number);
-
-    # Optional: Send email notification (requires EMAIL_* secrets)
-    - name: Send email notification on failure
-      if: needs.build.outputs.build-status == 'failure'
-      uses: dawidd6/action-send-mail@v3
-      with:
-        server_address: ${{ secrets.EMAIL_SERVER }}
-        server_port: ${{ secrets.EMAIL_PORT }}
-        username: ${{ secrets.EMAIL_USERNAME }}
-        password: ${{ secrets.EMAIL_PASSWORD }}
-        subject: "🚨 STM32 Build Failed - ${{ github.repository }}"
-        body: |
-          Build failed on master branch.
-
-          Commit: ${{ github.sha }}
-          Author: ${{ github.actor }}
-
-          Check the workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        to: ${{ secrets.NOTIFICATION_EMAIL }}
-        from: ${{ secrets.EMAIL_FROM }}
-      continue-on-error: true
-
-    # Optional: Send Slack notification (requires SLACK_WEBHOOK_URL secret)
-    - name: Send Slack notification
-      if: always()
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ needs.build.outputs.build-status == 'success' && 'success' || 'failure' }}
-        text: |
-          STM32 Build ${{ needs.build.outputs.build-status == 'success' && '✅ Succeeded' || '❌ Failed' }} on master
-          Commit: `${{ github.sha }}`
-          Author: ${{ github.actor }}
-        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-      continue-on-error: true
+    - name: Add PR comment on failure
+      if: failure() && github.event_name == 'pull_request'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        curl -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments" \
+          -d '{
+            "body": "🚨 **Build Failed** ❌\n\nThe STM32 build failed for this PR. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) and fix the issues before merging.\n\n*This comment was automatically generated by the CI system.*"
+          }'
