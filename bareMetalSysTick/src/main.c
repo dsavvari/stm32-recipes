@@ -5,17 +5,36 @@
  * License: MIT License (See below)
  * ----------------------------------------------------------------------------
  * Description:
+ *
+ * What is SysTick Timer?
+ * SysTick (System Tick Timer) is a 24-bit down-counting timer that's part of the
+ * ARM Cortex-M core (not an STM32 peripheral). It provides a consistent timing
+ * reference for operating systems and applications.
+ *
+ * Key Characteristics:
+ * - 24-bit counter: Can count from 0 to 16,777,215 (0xFFFFFF)
+ * - Down-counting: Counts from reload value down to 0
+ * - Built into Cortex-M core: Available on all ARM Cortex-M processors
+ * - High priority: Uses exception priority -1 (higher than all interrupts)
+ * - Clock sources: Processor clock (HCLK) or external reference (HCLK/8)
+ * - Hardware-based: Provides precise timing independent of software execution
+ *
  * This is a minimal bare-metal implementation of a SysTick timer demo for the
  * STM32L4S5VI microcontroller on the B-L4S5I-IOT01A development board.
  *
- * - Configures GPIOA Pin 5 (PA5-LED1) and GPIOB Pin 14 (PB14-LED2) as outputs.
+ * - Configures GPIO pins: PA5 (LED1), PB14 (LED2), PA0 (External LED - ARD-D1), and PC13 (Button).
  * - Uses SysTick timer to generate precise 1ms interrupts.
- * - Toggles LED1 every 500ms and LED2 every 1000ms using the SysTick timer.
- * - Demonstrates SysTick configuration, interrupt handling, and precise timing.
+ * - All three LEDs (LED1, LED2, and External LED) blink at user-selectable frequencies (button-controlled).
+ * - External LED on PA0 (ARD-D1) provides variable frequency square wave for oscilloscope measurements.
+ * - Button on PC13 cycles through blink periods: 1000ms → 500ms → 300ms → 250ms → 200ms → repeat.
+ * - Demonstrates SysTick configuration, interrupt handling, button debouncing, and precise timing.
  *
  * Features:
  * - SysTick configured for 1ms interrupt at 4MHz system clock
  * - Non-blocking LED control using timer-based state machine
+ * - User button for frequency selection with edge detection
+ * - Multiple blink frequencies from 1Hz down to 5Hz (200ms minimum period)
+ * - All three LEDs blink synchronously at the selected frequency for easy oscilloscope measurements
  * - Proper interrupt vector table setup
  * - System tick counter for timekeeping
  *
@@ -51,12 +70,8 @@
  * Constants and Definitions
  */
 
-// GPIO Register definitions
-#define RCC_AHB2ENR     (*(volatile uint32_t*)(RCC_BASE + 0x4C))
-#define GPIOA_MODER     (*(volatile uint32_t*)(GPIOA_BASE + 0x00))
-#define GPIOA_ODR       (*(volatile uint32_t*)(GPIOA_BASE + 0x14))
-#define GPIOB_MODER     (*(volatile uint32_t*)(GPIOB_BASE + 0x00))
-#define GPIOB_ODR       (*(volatile uint32_t*)(GPIOB_BASE + 0x14))
+// GPIO Register definitions - Use CMSIS-style access
+// No need to redefine - will use RCC->, GPIOA->, GPIOB->, GPIOC-> directly
 
 // SysTick Register definitions (Cortex-M4 System Control Block)
 #define SYSTICK_BASE    0xE000E010UL
@@ -71,24 +86,36 @@
 #define SYSTICK_CSR_COUNTFLAG   (1U << 16)  // Count flag
 
 // GPIO bit definitions for PA5 (LED1)
-#define RCC_AHB2ENR_GPIOAEN     (1U << 0)
 #define GPIOA5_MODER_OUTPUT     (1U << 10)
 #define GPIOA5_MODER_MASK       (3U << 10)
 #define GPIOA5_ODR              (1U << 5)
 
 // GPIO bit definitions for PB14 (LED2)
-#define RCC_AHB2ENR_GPIOBEN     (1U << 1)
 #define GPIOB14_MODER_OUTPUT    (1U << 28)
 #define GPIOB14_MODER_MASK      (3U << 28)
 #define GPIOB14_ODR             (1U << 14)
+
+// GPIO bit definitions for PA0 (External LED - ARD-D1)
+#define GPIOA0_MODER_OUTPUT     (1U << 0)
+#define GPIOA0_MODER_MASK       (3U << 0)
+#define GPIOA0_ODR              (1U << 0)
+
+// GPIO bit definitions for PC13 (User Button)
+#define GPIOC13_MODER_INPUT     (0U << 26)
+#define GPIOC13_MODER_MASK      (3U << 26)
+#define GPIOC13_PUPDR_PULLUP    (1U << 26)
+#define GPIOC13_PUPDR_MASK      (3U << 26)
+#define GPIOC13_IDR             (1U << 13)
 
 // Timing constants
 #define SYSTEM_CLOCK_HZ         4000000UL   // 4MHz MSI clock (default)
 #define SYSTICK_FREQ_HZ         1000UL      // 1kHz = 1ms period
 #define SYSTICK_RELOAD_VALUE    ((SYSTEM_CLOCK_HZ / SYSTICK_FREQ_HZ) - 1)
 
-#define LED1_TOGGLE_PERIOD_MS   500         // Toggle LED1 every 500ms
-#define LED2_TOGGLE_PERIOD_MS   1000        // Toggle LED2 every 1000ms
+// LED timing periods (in milliseconds)
+#define NUM_BLINK_PERIODS       5           // Number of different blink periods
+#define BLINK_PERIODS_MS        {1000, 500, 300, 250, 200}  // Available periods
+#define EXT_LED_TOGGLE_PERIOD_MS 1000       // External LED always at 1Hz for scope reference
 
 /* ----------------------------------------------------------------------------
  * Global Variables
@@ -96,13 +123,20 @@
 static volatile uint32_t system_tick_counter = 0;
 static volatile uint32_t led1_last_toggle = 0;
 static volatile uint32_t led2_last_toggle = 0;
+static volatile uint32_t ext_led_last_toggle = 0;
+
+// Button and frequency control variables
+static uint8_t current_period_index = 0;    // Index into blink_periods array
+static const uint32_t blink_periods[NUM_BLINK_PERIODS] = BLINK_PERIODS_MS;
 
 /* ----------------------------------------------------------------------------
  * Function Prototypes
  */
 static void gpio_init(void);
+static void button_init(void);
 static void systick_init(void);
 static void led_update(void);
+static int is_button_pressed(void);
 
 /* ----------------------------------------------------------------------------
  * SysTick Interrupt Handler
@@ -119,25 +153,49 @@ void SysTick_Handler(void)
 /**
  * ----------------------------------------------------------------------------
  * @brief   Initialize GPIO pins for LEDs.
- * @details Configures PA5 (LED1) and PB14 (LED2) as output pins.
+ * @details Configures PA5 (LED1), PB14 (LED2), and PA0 (External LED) as output pins.
+ *          All three LEDs will blink synchronously at the user-selected frequency.
  * ----------------------------------------------------------------------------
  */
 static void gpio_init(void)
 {
     // Enable clocks for GPIOA and GPIOB
-    RCC_AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOBEN;
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOBEN;
 
     // Configure PA5 as output
-    GPIOA_MODER &= ~GPIOA5_MODER_MASK;      // Clear mode bits
-    GPIOA_MODER |= GPIOA5_MODER_OUTPUT;     // Set as output
+    GPIOA->MODER &= ~GPIOA5_MODER_MASK;      // Clear mode bits
+    GPIOA->MODER |= GPIOA5_MODER_OUTPUT;     // Set as output
+
+    // Configure PA0 as output (External LED - ARD-D1)
+    GPIOA->MODER &= ~GPIOA0_MODER_MASK;      // Clear mode bits
+    GPIOA->MODER |= GPIOA0_MODER_OUTPUT;     // Set as output
 
     // Configure PB14 as output
-    GPIOB_MODER &= ~GPIOB14_MODER_MASK;     // Clear mode bits
-    GPIOB_MODER |= GPIOB14_MODER_OUTPUT;    // Set as output
+    GPIOB->MODER &= ~GPIOB14_MODER_MASK;     // Clear mode bits
+    GPIOB->MODER |= GPIOB14_MODER_OUTPUT;    // Set as output
 
-    // Turn off both LEDs initially
-    GPIOA_ODR &= ~GPIOA5_ODR;
-    GPIOB_ODR &= ~GPIOB14_ODR;
+    // Turn off all LEDs initially
+    GPIOA->ODR &= ~(GPIOA5_ODR | GPIOA0_ODR);
+    GPIOB->ODR &= ~GPIOB14_ODR;
+}
+
+/**
+ * ----------------------------------------------------------------------------
+ * @brief   Initialize user button (PC13) as input with pull-up.
+ * @details Enables GPIOC clock, sets PC13 as input, and enables pull-up.
+ * ----------------------------------------------------------------------------
+ */
+static void button_init(void)
+{
+    // Enable clock for GPIOC
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
+
+    // Set PC13 as input (default state)
+    GPIOC->MODER &= ~GPIOC13_MODER_MASK;     // Clear mode bits (input mode)
+
+    // Enable pull-up on PC13
+    GPIOC->PUPDR &= ~GPIOC13_PUPDR_MASK;     // Clear pull-up/down bits
+    GPIOC->PUPDR |= GPIOC13_PUPDR_PULLUP;    // Set pull-up
 }
 
 /**
@@ -166,23 +224,34 @@ static void systick_init(void)
 /**
  * ----------------------------------------------------------------------------
  * @brief   Update LED states based on timing.
- * @details Called from SysTick interrupt to toggle LEDs at different intervals.
+ * @details Called from SysTick interrupt to toggle all LEDs at the same interval.
+ *          LED1, LED2, and External LED all use the current blink period selected by button press.
+ *          All three LEDs blink synchronously at the user-selected frequency.
  * ----------------------------------------------------------------------------
  */
 static void led_update(void)
 {
-    // Toggle LED1 every 500ms
-    if ((system_tick_counter - led1_last_toggle) >= LED1_TOGGLE_PERIOD_MS)
+    uint32_t current_period = blink_periods[current_period_index];
+
+    // Toggle LED1 using current blink period
+    if ((system_tick_counter - led1_last_toggle) >= current_period)
     {
-        GPIOA_ODR ^= GPIOA5_ODR;            // Toggle LED1
+        GPIOA->ODR ^= GPIOA5_ODR;            // Toggle LED1
         led1_last_toggle = system_tick_counter;
     }
 
-    // Toggle LED2 every 1000ms
-    if ((system_tick_counter - led2_last_toggle) >= LED2_TOGGLE_PERIOD_MS)
+    // Toggle LED2 using current blink period
+    if ((system_tick_counter - led2_last_toggle) >= current_period)
     {
-        GPIOB_ODR ^= GPIOB14_ODR;           // Toggle LED2
+        GPIOB->ODR ^= GPIOB14_ODR;           // Toggle LED2
         led2_last_toggle = system_tick_counter;
+    }
+
+    // Toggle External LED using current blink period (same as LED1 and LED2)
+    if ((system_tick_counter - ext_led_last_toggle) >= current_period)
+    {
+        GPIOA->ODR ^= GPIOA0_ODR;            // Toggle External LED (PA0)
+        ext_led_last_toggle = system_tick_counter;
     }
 }
 
@@ -201,30 +270,59 @@ uint32_t get_system_tick(void)
 /**
  * ----------------------------------------------------------------------------
  * @brief   Main function for SysTick Demo on STM32L4S5VI.
- * @details Initializes GPIO and SysTick timer, then enters an infinite loop.
+ * @details Initializes GPIO, button, and SysTick timer, then enters an infinite loop.
  *          The actual LED toggling is handled by the SysTick interrupt.
+ *          Button presses cycle through different blink frequencies.
  *
  * @return  This function never returns (infinite loop).
  *
  * @pre     System should be using the default MSI clock (4MHz).
- * @post    LED1 blinks every 500ms, LED2 blinks every 1000ms.
+ * @post    All three LEDs (LED1, LED2, and External LED) blink synchronously at
+ *          user-selectable frequencies (1000/500/300/250/200ms).
+ *          External LED (PA0) provides variable frequency signal for oscilloscope measurements.
  * ----------------------------------------------------------------------------
  */
 int main(void)
 {
     // Initialize peripherals
     gpio_init();
+    button_init();
     systick_init();
 
     // Main loop - all timing is handled by SysTick interrupt
     while (1)
     {
-        // Main loop can perform other tasks here
-        // LEDs are controlled automatically by SysTick interrupt
+        // Check for button press to change blink frequency
+        if (is_button_pressed())
+        {
+            // Cycle through blink periods: 1000ms -> 500ms -> 300ms -> 250ms -> 200ms -> repeat
+            current_period_index = (current_period_index + 1) % NUM_BLINK_PERIODS;
+        }
 
-        // Optional: Add a simple heartbeat or other non-blocking operations
-        __asm("wfi");  // Wait for interrupt (low power mode)
+        // Wait for interrupt (low power mode)
+        __asm("wfi");
     }
 
     return 0;  // Never reached
+}
+
+/**
+ * ----------------------------------------------------------------------------
+ * @brief   Detect falling edge on user button (PC13).
+ * @details Uses static variable to track button state and detect press events.
+ * @retval  1 if button was just pressed, 0 otherwise.
+ * ----------------------------------------------------------------------------
+ */
+static int is_button_pressed(void)
+{
+    static int prev_state = 1;  // Button is pulled up (1 = not pressed)
+    int current_state = (GPIOC->IDR & GPIOC13_IDR) ? 1 : 0;
+
+    if (prev_state == 1 && current_state == 0) {
+        prev_state = 0;
+        return 1; // Falling edge detected (button pressed)
+    } else if (current_state == 1) {
+        prev_state = 1;
+    }
+    return 0;
 }
