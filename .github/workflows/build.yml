@@ -9,56 +9,56 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    
+
     - name: Set up ARM GNU Toolchain
       uses: carlosperate/arm-none-eabi-gcc-action@v1
       with:
         release: '12.2.Rel1'
-    
+
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential git
-    
+
     - name: Verify toolchain installation
       run: |
         arm-none-eabi-gcc --version
         arm-none-eabi-size --version
         cmake --version
-    
+
     - name: Setup third-party dependencies
       run: |
         chmod +x ./thirdparty.sh
         ./thirdparty.sh
-    
+
     - name: List dependencies
       run: |
         ls -la repos/
         ls -la repos/stm32-cmake/
-    
+
     - name: Configure CMake
       run: |
         mkdir -p build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release -DSTM32_CHIP=STM32L4S5VI
-    
+
     - name: Build all projects
       run: |
         cd build
         cmake --build . --parallel $(nproc)
-    
+
     - name: Display binary sizes
       run: |
         echo "## Binary Sizes" >> $GITHUB_STEP_SUMMARY
         echo "| Project | Text | Data | BSS | Total | Hex |" >> $GITHUB_STEP_SUMMARY
         echo "|---------|------|------|-----|-------|-----|" >> $GITHUB_STEP_SUMMARY
-        
+
         for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
           if [ -f "build/${project}/stm32l4-${project}.elf" ]; then
             echo "Processing $project..."
@@ -74,7 +74,7 @@ jobs:
             echo "⚠️ Binary not found for $project"
           fi
         done
-    
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -85,7 +85,7 @@ jobs:
           build/*/stm32l4-*.hex
         retention-days: 30
       if: always()  # Upload artifacts even if some steps fail
-    
+
     - name: Check for build failures
       if: failure()
       run: |
@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: failure()
-    
+
     steps:
     - name: Notify on failure
       env:
