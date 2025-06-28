@@ -80,10 +80,10 @@ jobs:
       if: env.BUILD_SUCCESS == 'true'
       run: |
         sizes_json="["
-        first=true
+        first="true"
         for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
           if [ -f "build/${project}/stm32l4-${project}.elf" ]; then
-            if [ "$first" = false ]; then
+            if [ "$first" = "false" ]; then
               sizes_json="${sizes_json},"
             fi
             size_output=$(arm-none-eabi-size "build/${project}/stm32l4-${project}.elf" | tail -n 1)
@@ -93,7 +93,7 @@ jobs:
             dec=$(echo $size_output | awk '{print $4}')
             hex=$(echo $size_output | awk '{print $5}')
             sizes_json="${sizes_json}{\"project\":\"${project}\",\"text\":${text},\"data\":${data},\"bss\":${bss},\"total\":${dec},\"hex\":\"${hex}\"}"
-            first=false
+            first="false"
           fi
         done
         sizes_json="${sizes_json}]"
