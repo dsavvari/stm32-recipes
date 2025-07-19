@@ -61,7 +61,14 @@ find_package(CMSIS COMPONENTS "${CMSIS_COMP_LIST}" REQUIRED)
 # Include subprojects
 add_subdirectory(bareMetalBlink)
 add_subdirectory(bareMetalPWM)
-add_subdirectory(bareMetalSysTick)
+add_subdirectory(cortexSysTick)
+
+# Cortex-M fundamental exploration projects
+add_subdirectory(cortexExceptions)
+add_subdirectory(cortexPowerModes)
+add_subdirectory(cortexMemoryMap)
+add_subdirectory(cortexSystemControl)
+add_subdirectory(cortexDebugTrace)
 
 # Add more subprojects here as needed
 # Example: add_subdirectory(anotherProject)

@@ -93,7 +93,7 @@ Each example is located in its own directory with a complete `CMakeLists.txt` fi
 
 - A bare-metal example demonstrating **PWM (Pulse Width Modulation)** signal generation on STM32L4S5VI (B-L4S5I-IOT01A). This example configures TIM2 to output a PWM signal on PA0 (ARD-D1), and allows the user to cycle through preset frequencies or pulse widths by pressing the user button (PC13). All configuration is done via direct register access, without HAL or CMSIS drivers. This is ideal for learning low-level STM32 timer and GPIO control.
 
-#### `bareMetalSysTick`
+#### `cortexSysTick`
 
 - A bare-metal example demonstrating **SysTick timer** implementation on STM32L4S5VI (B-L4S5I-IOT01A). This example configures the SysTick timer for precise timing control and demonstrates synchronous LED blinking on three outputs: PA5 (LED1), PB14 (LED2), and PA0 (external LED/oscilloscope probe). The user can cycle through different blink frequencies (1000/500/300/250/200ms) by pressing the user button (PC13). All configuration is done via direct register access using CMSIS, making it ideal for learning low-level STM32 timing and interrupt handling.
 
@@ -165,7 +165,7 @@ This repository includes a **production-ready CI/CD pipeline** with GitHub Actio
 
 - **Triggers**: Push to master/main, Pull Requests, Weekly schedule (Sundays 6 AM UTC)
 - **Environment**: Custom Docker image (`dsavvari/stm32-dev:latest`)
-- **Projects Built**: bareMetalBlink, bareMetalPWM, bareMetalSysTick
+- **Projects Built**: bareMetalBlink, bareMetalPWM, cortexSysTick, cortexExceptions, cortexPowerModes, cortexMemoryMap, cortexSystemControl, cortexDebugTrace
 - **Outputs**: Build status, binary sizes, downloadable artifacts
 
 **Build Process:**
@@ -223,11 +223,16 @@ Build Type: Release
 ✅ Build Status: SUCCESS
 
 Binary Sizes:
-| Project          | Text   | Data | BSS  | Total | Hex  |
-|------------------|--------|------|------|-------|------|
-| bareMetalBlink   | 1060   | 16   | 1972 | 3048  | be8  |
-| bareMetalPWM     | 1248   | 20   | 1972 | 3240  | ca8  |
-| bareMetalSysTick | 1156   | 16   | 1972 | 3144  | c48  |
+| Project             | Text   | Data | BSS  | Total | Hex  |
+|---------------------|--------|------|------|-------|------|
+| bareMetalBlink      | 1060   | 16   | 1972 | 3048  | be8  |
+| bareMetalPWM        | 1248   | 20   | 1972 | 3240  | ca8  |
+| cortexSysTick       | 1596   | 20   | 1992 | 3608  | e18  |
+| cortexExceptions    | 34800  | 1760 | 2404 | 38964 | 9834 |
+| cortexPowerModes    | 36064  | 1760 | 2388 | 40212 | 9d14 |
+| cortexMemoryMap     | 40096  | 2784 | 2396 | 45276 | b0dc |
+| cortexSystemControl | 38136  | 1768 | 3440 | 43344 | a950 |
+| cortexDebugTrace    | 38032  | 1760 | 5016 | 44808 | af08 |
 ```
 
 ### 🛠 **Docker Management Scripts**
@@ -326,7 +331,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
 cmake --build . --parallel $(nproc)
 
 # Check binary sizes like CI does
-for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
+for project in bareMetalBlink bareMetalPWM cortexSysTick cortexExceptions cortexPowerModes cortexMemoryMap cortexSystemControl cortexDebugTrace; do
   if [ -f "${project}/stm32l4-${project}.elf" ]; then
     arm-none-eabi-size "${project}/stm32l4-${project}.elf"
   fi

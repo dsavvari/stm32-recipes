@@ -48,7 +48,7 @@ echo "| Project | Text | Data | BSS | Total | Hex |"
 echo "|---------|------|------|-----|-------|-----|"
 
 BUILD_SUCCESS=true
-for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
+for project in bareMetalBlink bareMetalPWM cortexSysTick cortexExceptions cortexPowerModes cortexMemoryMap cortexSystemControl cortexDebugTrace; do
     if [ -f "${project}/stm32l4-${project}.elf" ]; then
         size_output=$(arm-none-eabi-size "${project}/stm32l4-${project}.elf" | tail -n 1)
         text=$(echo $size_output | awk '{print $1}')

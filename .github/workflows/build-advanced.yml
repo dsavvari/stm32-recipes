@@ -109,7 +109,7 @@ jobs:
       run: |
         sizes_json="["
         first="true"
-        for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
+        for project in bareMetalBlink bareMetalPWM cortexSysTick cortexExceptions cortexPowerModes cortexMemoryMap cortexSystemControl cortexDebugTrace; do
           if [ -f "build/${project}/stm32l4-${project}.elf" ]; then
             if [ "$first" = "false" ]; then
               sizes_json="${sizes_json},"
@@ -143,7 +143,7 @@ jobs:
           echo "| Project | Text (bytes) | Data (bytes) | BSS (bytes) | Total (bytes) | Total (hex) |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------------|--------------|-------------|---------------|-------------|" >> $GITHUB_STEP_SUMMARY
 
-          for project in bareMetalBlink bareMetalPWM bareMetalSysTick; do
+          for project in bareMetalBlink bareMetalPWM cortexSysTick cortexExceptions cortexPowerModes cortexMemoryMap cortexSystemControl cortexDebugTrace; do
             if [ -f "build/${project}/stm32l4-${project}.elf" ]; then
               size_output=$(arm-none-eabi-size "build/${project}/stm32l4-${project}.elf" | tail -n 1)
               text=$(echo $size_output | awk '{print $1}')
