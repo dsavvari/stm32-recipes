@@ -58,6 +58,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 #include "stm32l4s5xx.h"
 
 /* ----------------------------------------------------------------------------
@@ -70,6 +71,15 @@ volatile uint32_t g_chars_transmitted = 0;   // Count of characters transmitted
 volatile uint8_t g_last_char_received = 0;   // Last character received
 volatile uint8_t g_uart_status = 0;          // UART status flags
 volatile uint32_t g_led_blink_count = 0;     // LED blink counter
+
+// Transmission statistics
+volatile uint32_t g_alpha_chars = 0;         // Alphabetic characters
+volatile uint32_t g_numeric_chars = 0;       // Numeric characters
+volatile uint32_t g_special_chars = 0;       // Special characters
+volatile uint32_t g_control_chars = 0;       // Control characters (CR, LF, etc.)
+volatile uint32_t g_space_chars = 0;         // Space characters
+volatile uint32_t g_total_bytes = 0;         // Total bytes transmitted
+volatile uint32_t g_lines_received = 0;      // Number of lines (CR count)
 
 /* ----------------------------------------------------------------------------
  * UART Configuration Constants
@@ -246,6 +256,138 @@ void uart2_transmit_string(const char* str)
 
 /**
  * ----------------------------------------------------------------------------
+ * @brief   Classify a character and update statistics.
+ * @param   ch Character to classify
+ * ----------------------------------------------------------------------------
+ */
+void classify_character(uint8_t ch)
+{
+    if (ch >= 'A' && ch <= 'Z') {
+        g_alpha_chars++;
+    } else if (ch >= 'a' && ch <= 'z') {
+        g_alpha_chars++;
+    } else if (ch >= '0' && ch <= '9') {
+        g_numeric_chars++;
+    } else if (ch == ' ' || ch == '\t') {
+        g_space_chars++;
+    } else if (ch == '\r' || ch == '\n' || ch < 32 || ch == 127) {
+        g_control_chars++;
+        if (ch == '\r') {
+            g_lines_received++;
+        }
+    } else {
+        g_special_chars++;
+    }
+}
+
+/**
+ * ----------------------------------------------------------------------------
+ * @brief   Handle special characters with visual feedback.
+ * @param   ch Character to handle
+ * @return  1 if special handling was applied, 0 otherwise
+ * ----------------------------------------------------------------------------
+ */
+uint8_t handle_special_character(uint8_t ch)
+{
+    switch (ch) {
+        case '\r':  // Carriage Return
+            uart2_transmit_string("\r\n[CR received]\r\nReady> ");
+            return 1;
+
+        case '\n':  // Line Feed
+            uart2_transmit_string("\r\n[LF received]\r\nReady> ");
+            return 1;
+
+        case '\t':  // Tab
+            uart2_transmit_string("[TAB]");
+            return 1;
+
+        case '\b':  // Backspace
+            uart2_transmit_string("\b \b[BS]");
+            return 1;
+
+        case 27:    // ESC
+            uart2_transmit_string("[ESC]");
+            return 1;
+
+        case 127:   // DEL
+            uart2_transmit_string("[DEL]");
+            return 1;
+
+        default:
+            // Check for other non-printable characters
+            if (ch < 32) {
+                uart2_transmit_string("[CTRL+");
+                uart2_transmit_char('A' + ch - 1);
+                uart2_transmit_string("]");
+                return 1;
+            }
+            return 0;  // Not a special character
+    }
+}
+
+/**
+ * ----------------------------------------------------------------------------
+ * @brief   Print transmission statistics via UART.
+ * ----------------------------------------------------------------------------
+ */
+void print_statistics(void)
+{
+    uart2_transmit_string("\r\n=== UART Statistics ===\r\n");
+
+    // Helper function to print numbers
+    char buffer[16];
+
+    // Total characters
+    uart2_transmit_string("Total RX: ");
+    sprintf(buffer, "%lu", g_chars_received);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n");
+
+    uart2_transmit_string("Total TX: ");
+    sprintf(buffer, "%lu", g_chars_transmitted);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n");
+
+    // Character breakdown
+    uart2_transmit_string("Alphabetic: ");
+    sprintf(buffer, "%lu", g_alpha_chars);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n");
+
+    uart2_transmit_string("Numeric: ");
+    sprintf(buffer, "%lu", g_numeric_chars);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n");
+
+    uart2_transmit_string("Special: ");
+    sprintf(buffer, "%lu", g_special_chars);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n");
+
+    uart2_transmit_string("Control: ");
+    sprintf(buffer, "%lu", g_control_chars);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n");
+
+    uart2_transmit_string("Spaces: ");
+    sprintf(buffer, "%lu", g_space_chars);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n");
+
+    uart2_transmit_string("Lines: ");
+    sprintf(buffer, "%lu", g_lines_received);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n");
+
+    uart2_transmit_string("LED blinks: ");
+    sprintf(buffer, "%lu", g_led_blink_count);
+    uart2_transmit_string(buffer);
+    uart2_transmit_string("\r\n========================\r\nReady> ");
+}
+
+/**
+ * ----------------------------------------------------------------------------
  * @brief   Toggle LED1 for visual feedback.
  * ----------------------------------------------------------------------------
  */
@@ -289,12 +431,15 @@ int main(void)
     uart2_init();
 
     // Send startup message
-    uart2_transmit_string("STM32L4S5VI UART Demo\r\n");
+    uart2_transmit_string("\r\nSTM32L4S5VI UART Demo with Statistics\r\n");
     uart2_transmit_string("Type characters to see them echoed back\r\n");
     uart2_transmit_string("LED1 will blink for each received character\r\n");
+    uart2_transmit_string("Special commands:\r\n");
+    uart2_transmit_string("  Ctrl+S: Show statistics\r\n");
+    uart2_transmit_string("  Ctrl+R: Reset statistics\r\n");
     uart2_transmit_string("Ready> ");
 
-    // Main loop - UART echo with LED feedback
+    // Main loop - UART echo with LED feedback and statistics
     while (1)
     {
         // Check if data is available
@@ -303,20 +448,36 @@ int main(void)
             // Receive character
             uint8_t received_char = uart2_receive_char();
 
-            // Echo the character back
-            uart2_transmit_char(received_char);
+            // Classify character for statistics
+            classify_character(received_char);
+
+            // Check for special commands
+            if (received_char == 19) {  // Ctrl+S - Show statistics
+                print_statistics();
+            } else if (received_char == 18) {  // Ctrl+R - Reset statistics
+                g_chars_received = 0;
+                g_chars_transmitted = 0;
+                g_alpha_chars = 0;
+                g_numeric_chars = 0;
+                g_special_chars = 0;
+                g_control_chars = 0;
+                g_space_chars = 0;
+                g_lines_received = 0;
+                g_led_blink_count = 0;
+                uart2_transmit_string("\r\n[Statistics Reset]\r\nReady> ");
+            } else {
+                // Handle special characters or echo normally
+                if (!handle_special_character(received_char)) {
+                    // Normal character - just echo it
+                    uart2_transmit_char(received_char);
+                }
+            }
 
             // Toggle LED for visual feedback
             led1_toggle();
 
             // Update UART status for Live Watch
             g_uart_status = USART2->ISR;
-
-            // If Enter key (CR) was pressed, send line feed and prompt
-            if (received_char == '\r')
-            {
-                uart2_transmit_string("\nReady> ");
-            }
         }
 
         // Small delay to prevent busy waiting
