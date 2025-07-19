@@ -44,6 +44,7 @@
  */
 
 #include <stdint.h>
+#include <stddef.h>
 #include "stm32l4s5xx.h"
 
 /**
@@ -215,21 +216,23 @@ int main(void) {
 #if PULSE_WIDTH
     /* Pulse widths in ticks (1 tick = 0.1 ms) */
     uint16_t pulse_widths[] = {10, 50, 100, 250, 500, 1000, 2000, 5000, 10000, 10};
+    size_t pulse_widths_size = sizeof(pulse_widths) / sizeof(pulse_widths[0]);
     int pulse_index = 0;
-#endif    
+#endif
 
     /* Frequency steps in Hz */
-    uint32_t frequencies[] = {1, 2, 5, 10, 20, 50, 100, 1};
+    uint32_t frequencies[] = {1,2,5,10,20,50,100,200,500,1000};
+    size_t frequencies_size = sizeof(frequencies) / sizeof(frequencies[0]);
     uint8_t freq_index = 0;
 
     while (1) {
         if (is_button_pressed()) {
 #if PULSE_WIDTH
-            pulse_index = (pulse_index + 1) % 10;
+            pulse_index = (pulse_index + 1) % pulse_widths_size;
             update_pulse_width(pulse_widths[pulse_index]);
-#else    
-            freq_index = (freq_index + 1) % 8;
+#else
             update_pwm_frequency(frequencies[freq_index]);
+            freq_index = (freq_index + 1) % frequencies_size;
 #endif
         }
     }
