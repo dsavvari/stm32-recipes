@@ -192,6 +192,7 @@
 			"options": [
 				"bareMetalBlink",
 				"bareMetalPWM",
+				"bareMetalUART",
 				"cortexSysTick",
 				"cortexExceptions",
 				"cortexPowerModes",
@@ -207,6 +208,7 @@
 			"options": [
 				"bareMetalBlink",
 				"bareMetalPWM",
+				"bareMetalUART",
 				"cortexSysTick",
 				"cortexExceptions",
 				"cortexPowerModes",
